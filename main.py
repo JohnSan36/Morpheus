@@ -17,6 +17,7 @@ from langchain.prompts import MessagesPlaceholder
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
 
 from dotenv import load_dotenv, find_dotenv
 from pydantic import BaseModel, Field
@@ -30,7 +31,6 @@ from datetime import datetime
 import requests
 import os
 
-load_dotenv(find_dotenv())
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -45,23 +45,20 @@ api_key = os.getenv("OPENAI_API_KEY")
 api_key_gemini = os.getenv("GOOGLE_API_KEY")
 
 
-LLM_PROVIDER = "openai" 
-
-if LLM_PROVIDER == "openai":
-    llm = ChatOpenAI(model="gpt-4o", openai_api_key=api_key, temperature=0.0)
-elif LLM_PROVIDER == "gemini":
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=api_key_gemini)
-
-
 #-------------------------------------------------Functions---------------------------------------------------------------
+
 
 def obter_hora_e_data_atual():
     agora = datetime.now()
     return agora.strftime("%d-%m-%Y - %H:%M:%S")
 
+
 def get_memory_for_user(whatsapp):
-    memory = RedisChatMessageHistory(session_id=whatsapp, url=REDIS_URL)
+    memory = RedisChatMessageHistory(
+        session_id=whatsapp, 
+        url=REDIS_URL)
     return ConversationBufferMemory(return_messages=True, memory_key="memory", chat_memory=memory)
+
 
 def transcrever_audio(base64_audio: str):
     audio_data = base64.b64decode(base64_audio)
@@ -74,6 +71,7 @@ def transcrever_audio(base64_audio: str):
 
 #/------------------------------------------------Functions---------------------------------------------------------------
 #--------------------------------------------------Webhooks-------------------------------------------------------------------
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -86,26 +84,21 @@ async def receive_message(request: Request):
         user_number = "5541996143338"
         response = body["mensagem"]
         data_atual = obter_hora_e_data_atual()
-
-        whatsapp_id_processed = user_number.split("@")[0]
         memoria = get_memory_for_user(user_id)
 
-
         #--------------------------------------------------Tools----------------------------------------------------------
+        
         class Enviar_Evolution(BaseModel):
             texto: str = Field(description="Mensagem a ser enviada")
 
         @tool(args_schema=Enviar_Evolution)
         def enviar_msg(texto: str):
             """Envia uma mensagem de whatsapp ao usuario"""
-
             url = f"{EVOLUTION_URL}/message/sendText/{INSTANCE_ID}"
-            
             headers = {
                 "Content-Type": "application/json", 
                 "apikey": EVOLUTION_TOKEN
             }
-
             payload = {
                 "number": "5541996143338", 
                 "text": texto, 
@@ -144,6 +137,17 @@ async def receive_message(request: Request):
             agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"])
         )
 
+        LLM_PROVIDER = "openai" 
+
+        if LLM_PROVIDER == "openai":
+            llm = ChatOpenAI(model="gpt-4o", openai_api_key=api_key, temperature=0.0)
+        elif LLM_PROVIDER == "gemini":
+            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=api_key_gemini)
+            llm_with_tools = llm.bind_tools([enviar_msg])
+
+
+
+
         if LLM_PROVIDER == "openai":
             tools_json = [convert_to_openai_function(t) for t in tools]
             chain = pass_through | prompt | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
@@ -157,8 +161,8 @@ async def receive_message(request: Request):
             verbose=True,
             return_intermediate_steps=True
         )
-
         resposta = agent_executor.invoke({"input": response})
+
         return {"text": resposta["output"]}
 
     except Exception as e:
