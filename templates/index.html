@@ -11,6 +11,12 @@
         <header class="chat-header">
             <h2>Morpheus</h2>
         </header>
+
+        <div class="chat-modes">
+            <button id="mode-gemini" class="mode-button active" data-mode="gemini">Gemini</button>
+            <button id="mode-chatgpt" class="mode-button" data-mode="chatgpt">ChatGPT</button>
+            </div>
+
         <div class="chat-messages" id="chat-messages">
             </div>
         <form class="chat-input-form" id="chat-form">
@@ -25,66 +31,87 @@
         const chatMessages = document.getElementById("chat-messages");
         const chatForm = document.getElementById("chat-form");
         const mensagemInput = document.getElementById("mensagem");
+        const modeButtons = document.querySelectorAll(".mode-button"); // Seleciona todos os botões de modo
 
+        let currentMode = "gemini"; // Modo padrão
+
+        // Função para adicionar uma mensagem ao chat
         function addMessage(sender, text) {
             const messageDiv = document.createElement("div");
             messageDiv.classList.add("chat-message", sender);
             messageDiv.innerHTML = `<div class="message-bubble">${text.replace(/\n/g, '<br>')}</div>`;
             chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight; 
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        // Adiciona uma mensagem inicial do assistente
         addMessage("assistant", "Olá! Como posso ajudar você hoje?");
 
+        // Função para enviar a mensagem
         async function sendMessage() {
             const mensagem = mensagemInput.value.trim();
             if (!mensagem) return;
 
-            addMessage("user", mensagem); 
-            mensagemInput.value = ""; 
-            mensagemInput.style.height = 'auto'; 
+            addMessage("user", mensagem);
+            mensagemInput.value = "";
+            mensagemInput.style.height = 'auto';
 
             try {
                 const response = await fetch("/web", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ mensagem: mensagem }) 
+                    // Agora enviamos a mensagem E o modo selecionado
+                    body: JSON.stringify({ mensagem: mensagem, mode: currentMode })
                 });
 
                 const result = await response.json();
                 const assistantResponse = result.text || result.status || "Desculpe, não consegui obter uma resposta.";
-                addMessage("assistant", assistantResponse); 
-
+                addMessage("assistant", assistantResponse);
             } catch (error) {
                 console.error("Erro ao enviar mensagem:", error);
                 addMessage("assistant", "Ocorreu um erro ao comunicar com o assistente. Tente novamente.");
             }
         }
 
+        // Evento de submit do formulário (para o botão de envio)
         chatForm.addEventListener("submit", async (event) => {
-            event.preventDefault(); 
+            event.preventDefault();
             sendMessage();
         });
 
+        // Evento para lidar com as teclas Enter e Shift + Enter no textarea
         mensagemInput.addEventListener('keydown', (event) => {
-           
             if (event.key === 'Enter') {
-        
-                if (!event.shiftKey && !event.ctrlKey) { 
-                    event.preventDefault(); 
+                if (!event.shiftKey && !event.ctrlKey) {
+                    event.preventDefault();
                     sendMessage();
                 }
             }
         });
 
+        // Ajusta a altura do textarea dinamicamente
         mensagemInput.addEventListener('input', () => {
-            mensagemInput.style.height = 'auto'; 
+            mensagemInput.style.height = 'auto';
             mensagemInput.style.height = (mensagemInput.scrollHeight) + 'px';
             chatMessages.scrollTop = chatMessages.scrollHeight;
         });
 
+        // Opcional: Garante que o textarea esteja focado ao carregar a página
         window.addEventListener('load', () => {
             mensagemInput.focus();
+        });
+
+        // Lógica dos botões de modo
+        modeButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                // Remove a classe 'active' de todos os botões
+                modeButtons.forEach(btn => btn.classList.remove("active"));
+                // Adiciona a classe 'active' apenas ao botão clicado
+                button.classList.add("active");
+                // Atualiza o modo atual
+                currentMode = button.dataset.mode;
+                addMessage("assistant", `Você mudou para o modo "${currentMode.toUpperCase()}".`);
+            });
         });
     </script>
 </body>

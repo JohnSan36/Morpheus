@@ -149,5 +149,47 @@ body {
     background: #555;
 }
 
+/* Seção para os botões de modo */
+.chat-modes {
+    display: flex;
+    justify-content: center; /* Centraliza os botões */
+    gap: 10px; /* Espaço entre os botões */
+    padding: 15px 20px;
+    background-color: #f8f8f8;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+}
+
+.mode-button {
+    background-color: #e0e0e0;
+    color: #555;
+    border: 1px solid #ccc;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.mode-button:hover {
+    background-color: #d0d0d0;
+    color: #333;
+}
+
+.mode-button.active {
+    background-color: #10a37f;
+    color: white;
+    border-color: #10a37f;
+    box-shadow: 0 2px 5px rgba(16, 163, 127, 0.3);
+}
+
+/* Opcional: Ajustar o preenchimento das mensagens para não ficarem coladas nos botões */
+.chat-messages {
+    /* Mantenha o flex-grow: 1, padding, overflow-y e display: flex */
+    padding-top: 20px; /* Garante espaço após os botões de modo */
+}
+
 /* Optional: Google Fonts for a nicer look */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+

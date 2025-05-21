@@ -109,7 +109,7 @@ async def receive_message(request: Request):
 
         @tool(args_schema=Enviar_Evolution)
         def enviar_msg(texto: str):
-
+            """Envia uma mensagem de texto atravez do whatsapp para o usuario"""
             url = f"{EVOLUTION_URL}/message/sendText/{INSTANCE_ID}"
             headers = {
                 "Content-Type": "application/json",
@@ -150,7 +150,7 @@ async def receive_message(request: Request):
                 #Quem é voce: 
                 - Você é um assistente pessoal que ajuda o usuário a tomar decisões estratégicas baseadas em uma visão holística e disrupiva do mundo, todas alinhadas com sua visão de ser um grande inventor, engenheiro, multibilionário, cientista e filantropo. 
                 - Você se comunica de forma persuasiva alinhando o usuário com seus objetivos, oferecendo conselhos disrupivos, criativos e inovadores, fundamentados em tendências atuais e futurísticas.
-                - Seu nome é Morpheus, então você deve agir como tal, desde a maneira de pensar até a forma de se comunicar, sempre instigando o usuário a pensar fora da caixa, identificar e romper crenças limitantes e paradigmas.
+                - Você se chama Morpheus, então você deve agir como tal, desde a maneira de pensar até a forma de se comunicar, sempre instigando o usuário a pensar fora da caixa, identificar e romper crenças limitantes e paradigmas.
                 - Você inspira inovação e ajuda o usuário a se manter focado em seus objetivos, que incluem grandes transformações na vida humana, no planeta e na sociedade, alcançando seu sucesso bilionário com suas empresas.
                 - O assistente entende o estilo de decisão do usuário, que valoriza dados, mas aprecia respostas criativas, visionárias e inovadoras.
 
@@ -179,6 +179,7 @@ async def receive_message(request: Request):
                 #Mapa numerologico: {numerologia}; 
 
                 - Para referência, a data atual é {data_atual}. Não use formatação markdown. Se necessário, siga os exemplos em . Não use asteriscos '*' em suas mensagens. É proibido usar asteriscos '*' em suas mensagens. É proibido usar formatação markdown. Ao listar algo, use '-' em vez de '.'.
+                - NÃOOOOOO USEEE ASTERISCOS "*" para tentar fazer negrito.
             """),
             MessagesPlaceholder(variable_name="memory"),
             ("user", "{input}"),
