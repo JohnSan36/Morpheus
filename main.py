@@ -22,6 +22,7 @@ from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel, Field
 
 import openai
+import uvicorn
 from prompts import *
 import redis
 import base64
@@ -210,5 +211,4 @@ async def receive_message(request: Request):
         raise HTTPException(status_code=500, detail=f"Falha ao processar WEBHOOK: {str(e)}")
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8800)
