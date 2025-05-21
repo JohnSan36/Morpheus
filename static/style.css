@@ -1,0 +1,153 @@
+body {
+    background-color: #e0e0e0; /* Um cinza mais suave */
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Usando Inter se disponível */
+    color: #333;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Ocupa toda a altura da viewport */
+    overflow: hidden; /* Evita scroll na body principal */
+}
+
+.chat-container {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 700px; /* Largura máxima do container do chat */
+    height: 90vh; /* Altura do container do chat */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.chat-header {
+    background-color: #202123; /* Darker header */
+    color: white;
+    padding: 15px 25px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+}
+
+.chat-messages {
+    flex-grow: 1; /* Ocupa o espaço restante */
+    padding: 20px;
+    overflow-y: auto; /* Scroll para as mensagens */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Espaço entre as mensagens */
+}
+
+.chat-message {
+    display: flex;
+    max-width: 80%; /* Mensagens não ocupam a largura total */
+}
+
+.chat-message.user {
+    justify-content: flex-end; /* Mensagens do usuário à direita */
+    margin-left: auto;
+}
+
+.chat-message.assistant {
+    justify-content: flex-start; /* Mensagens do assistente à esquerda */
+    margin-right: auto;
+}
+
+.message-bubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    font-size: 15px;
+    line-height: 1.5;
+    word-wrap: break-word; /* Quebra de texto */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.chat-message.user .message-bubble {
+    background-color: #10a37f; /* Cor verde para o usuário */
+    color: white;
+    border-bottom-right-radius: 4px; /* Pequeno ajuste para o bubble do usuário */
+}
+
+.chat-message.assistant .message-bubble {
+    background-color: #f0f0f0; /* Cor clara para o assistente */
+    color: #333;
+    border-bottom-left-radius: 4px; /* Pequeno ajuste para o bubble do assistente */
+}
+
+.chat-input-form {
+    display: flex;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    background-color: #fff;
+    align-items: flex-end; /* Alinha o botão com o textarea */
+    gap: 10px;
+}
+
+.chat-input-form textarea {
+    flex-grow: 1; /* Ocupa o máximo de espaço */
+    border: 1px solid #ccc;
+    border-radius: 20px; /* Borda mais arredondada */
+    padding: 12px 18px;
+    font-size: 16px;
+    max-height: 120px; /* Altura máxima para o textarea */
+    overflow-y: auto; /* Adiciona scroll se o texto exceder */
+    resize: none; /* Remove o redimensionamento manual */
+    line-height: 1.4;
+}
+
+.chat-input-form textarea:focus {
+    outline: none;
+    border-color: #10a37f;
+    box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.2);
+}
+
+.chat-input-form button {
+    background-color: #10a37f;
+    color: white;
+    border: none;
+    border-radius: 50%; /* Botão redondo */
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 20px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    flex-shrink: 0; /* Não encolhe o botão */
+}
+
+.chat-input-form button:hover {
+    background-color: #0e8e6e;
+    transform: translateY(-2px);
+}
+
+/* Scrollbar styling for Webkit browsers */
+.chat-messages::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Optional: Google Fonts for a nicer look */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');

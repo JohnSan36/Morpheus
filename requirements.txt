@@ -1,0 +1,16 @@
+dotenv==0.9.9
+fastapi==0.115.12
+langchain==0.3.24
+langchain-core==0.3.55
+langchain-openai==0.3.14
+langchain-redis==0.2.0
+langchain-text-splitters==0.3.8
+langsmith==0.3.33
+openai==1.75.0
+pydantic==2.11.3
+pydantic_core==2.33.1
+python-dotenv==1.1.0
+redis==5.2.1
+requests==2.32.3
+uvicorn==0.34.2
+

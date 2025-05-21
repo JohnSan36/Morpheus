@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Morpheus</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <h2>Morpheus</h2>
+        </header>
+        <div class="chat-messages" id="chat-messages">
+            </div>
+        <form class="chat-input-form" id="chat-form">
+            <textarea id="mensagem" placeholder="Digite sua mensagem..." rows="1" required></textarea>
+            <button type="submit" title="Enviar Mensagem">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById("chat-messages");
+        const chatForm = document.getElementById("chat-form");
+        const mensagemInput = document.getElementById("mensagem");
+
+        function addMessage(sender, text) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("chat-message", sender);
+            messageDiv.innerHTML = `<div class="message-bubble">${text.replace(/\n/g, '<br>')}</div>`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight; 
+        }
+
+        addMessage("assistant", "Olá! Como posso ajudar você hoje?");
+
+        async function sendMessage() {
+            const mensagem = mensagemInput.value.trim();
+            if (!mensagem) return;
+
+            addMessage("user", mensagem); 
+            mensagemInput.value = ""; 
+            mensagemInput.style.height = 'auto'; 
+
+            try {
+                const response = await fetch("/web", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ mensagem: mensagem }) 
+                });
+
+                const result = await response.json();
+                const assistantResponse = result.text || result.status || "Desculpe, não consegui obter uma resposta.";
+                addMessage("assistant", assistantResponse); 
+
+            } catch (error) {
+                console.error("Erro ao enviar mensagem:", error);
+                addMessage("assistant", "Ocorreu um erro ao comunicar com o assistente. Tente novamente.");
+            }
+        }
+
+        chatForm.addEventListener("submit", async (event) => {
+            event.preventDefault(); 
+            sendMessage();
+        });
+
+        mensagemInput.addEventListener('keydown', (event) => {
+           
+            if (event.key === 'Enter') {
+        
+                if (!event.shiftKey && !event.ctrlKey) { 
+                    event.preventDefault(); 
+                    sendMessage();
+                }
+            }
+        });
+
+        mensagemInput.addEventListener('input', () => {
+            mensagemInput.style.height = 'auto'; 
+            mensagemInput.style.height = (mensagemInput.scrollHeight) + 'px';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+
+        window.addEventListener('load', () => {
+            mensagemInput.focus();
+        });
+    </script>
+</body>
+</html>
