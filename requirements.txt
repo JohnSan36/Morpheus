@@ -1,16 +1,15 @@
 dotenv==0.9.9
 fastapi==0.115.12
 langchain==0.3.25
-langchain-community==0.3.24
+langchain-community
 langchain-core==0.3.60
 langchain-google-genai==2.1.4
 langchain-openai==0.3.14
-langchain-redis==0.2.0
+langchain-redis
 langchain-text-splitters==0.3.8
-langsmith==0.3.33
 openai==1.75.0
 python-dotenv==1.1.0
-redis==5.2.1
+redis
 requests==2.32.3
 uvicorn==0.34.2
 
