@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
+from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.agents import AgentExecutor
 from langchain.agents import create_tool_calling_agent
@@ -12,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.memory import ConversationBufferMemory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain.prompts import MessagesPlaceholder
 
@@ -31,7 +33,6 @@ from datetime import datetime
 import requests
 import os
 
-
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -41,9 +42,8 @@ EVOLUTION_URL = os.getenv("EVOLUTION_URL")
 INSTANCE_ID = os.getenv("EVOLUTION_INSTANCE")
 EVOLUTION_TOKEN = os.getenv("EVOLUTION_APIKEY")
 
-api_key = os.getenv("OPENAI_API_KEY")
-api_key_gemini = os.getenv("GOOGLE_API_KEY")
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 #-------------------------------------------------Functions---------------------------------------------------------------
 
@@ -53,11 +53,13 @@ def obter_hora_e_data_atual():
     return agora.strftime("%d-%m-%Y - %H:%M:%S")
 
 
-def get_memory_for_user(whatsapp):
-    memory = RedisChatMessageHistory(
-        session_id=whatsapp, 
-        url=REDIS_URL)
-    return ConversationBufferMemory(return_messages=True, memory_key="memory", chat_memory=memory)
+def get_memory(session_id_key: str, memory_key_name: str):
+    chat_memory = RedisChatMessageHistory(
+        session_id=session_id_key,
+        url=REDIS_URL
+    )
+    return ConversationBufferMemory(return_messages=True, memory_key=memory_key_name, chat_memory=chat_memory, output_key='output')
+
 
 
 def transcrever_audio(base64_audio: str):
@@ -84,7 +86,6 @@ async def receive_message(request: Request):
         user_number = "5541996143338"
         response = body["mensagem"]
         data_atual = obter_hora_e_data_atual()
-        memoria = get_memory_for_user(user_id)
 
         #--------------------------------------------------Tools----------------------------------------------------------
         
@@ -123,44 +124,60 @@ async def receive_message(request: Request):
 
         #--------------------------------------------------Tools----------------------------------------------------------
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", f"""
-                Você é Morpheus, um assistente disruptivo. A data atual é {data_atual}.
-                Não use asteriscos, listas devem começar com '-'.
-            """),
+        prompt_openai_format = ChatPromptTemplate.from_messages([
+            ("system", f"Você é Morpheus (OpenAI). Data: {data_atual}."),
             MessagesPlaceholder(variable_name="memory"),
             ("user", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
 
-        pass_through = RunnablePassthrough.assign(
-            agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"])
-        )
+        prompt_gemini_format = ChatPromptTemplate.from_messages([
+            ("system", 
+                f"Você é Morpheus (Gemini), um assistente que mantém o contexto da conversa. Data: {data_atual}.\n\n"
+                "**Instruções para o uso de ferramentas:**\n"
+                "- **Para enviar uma mensagem**: Se o usuário solicitar 'enviar uma mensagem' ou 'enviar um whatsapp', utilize a ferramenta `enviar_msg` fornecendo o `texto` da mensagem.\n"
+                "- **Para excluir a memória**: Se o usuário pedir para 'excluir a memória', 'limpar a conversa' ou frases similares, utilize a ferramenta `excluir_memoria`.\n\n"
+                "Responda de forma útil e concisa, usando as ferramentas quando apropriado."),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad")
+        ])
 
-        LLM_PROVIDER = "openai" 
+        LLM_PROVIDER = "gemini" 
 
         if LLM_PROVIDER == "openai":
-            llm = ChatOpenAI(model="gpt-4o", openai_api_key=api_key, temperature=0.0)
-        elif LLM_PROVIDER == "gemini":
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=api_key_gemini)
-            llm_with_tools = llm.bind_tools([enviar_msg])
 
-
-
-
-        if LLM_PROVIDER == "openai":
+            active_memory = get_memory(user_id, "memory")
+            llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY, temperature=0.0)
             tools_json = [convert_to_openai_function(t) for t in tools]
-            chain = pass_through | prompt | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
-        elif LLM_PROVIDER == "gemini":
-            chain = create_tool_calling_agent(llm, tools, prompt)
+            chain = RunnablePassthrough.assign(
+                agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"])) | prompt_openai_format | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
 
-        agent_executor = AgentExecutor(
-            agent=chain,
-            memory=memoria,
-            tools=tools,
-            verbose=True,
-            return_intermediate_steps=True
-        )
+            agent_executor = AgentExecutor(
+                agent=chain,
+                memory=active_memory,
+                tools=tools,
+                verbose=True,
+                return_intermediate_steps=True,
+                handle_parsing_errors=True
+            )
+
+
+        elif LLM_PROVIDER == "gemini":
+
+            active_memory = get_memory(user_id, "chat_history")
+            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=GOOGLE_API_KEY, temperature=0.5) 
+            chain = create_tool_calling_agent(llm, tools, prompt_gemini_format) 
+
+            agent_executor = AgentExecutor(
+                agent=chain,
+                memory=active_memory, 
+                tools=tools,
+                verbose=True,
+                return_intermediate_steps=True,
+                handle_parsing_errors=True
+            )
+
         resposta = agent_executor.invoke({"input": response})
 
         return {"text": resposta["output"]}
