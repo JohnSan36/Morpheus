@@ -25,7 +25,7 @@
                 <i class="fas fa-paper-plane"></i>
             </button>
         </form>
-    </div>
+    </div>                                      
 
     <script>
         const chatMessages = document.getElementById("chat-messages");
@@ -33,7 +33,7 @@
         const mensagemInput = document.getElementById("mensagem");
         const modeButtons = document.querySelectorAll(".mode-button"); // Seleciona todos os botões de modo
 
-        let currentMode = "gemini"; // Modo padrão
+        let currentMode = "openai"; // Modo padrão
 
         // Função para adicionar uma mensagem ao chat
         function addMessage(sender, text) {
@@ -60,7 +60,7 @@
                 const response = await fetch("/web", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    // Agora enviamos a mensagem E o modo selecionado
+        
                     body: JSON.stringify({ mensagem: mensagem, mode: currentMode })
                 });
 

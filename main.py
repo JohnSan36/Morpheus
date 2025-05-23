@@ -84,8 +84,14 @@ async def receive_message(request: Request):
         body = await request.json()
         user_id = "John Santos"
         user_number = "5541996143338"
-        response = body["mensagem"]
+        #response = body["mensagem"]
         data_atual = obter_hora_e_data_atual()
+
+        response = body.get("mensagem")
+        LLM_PROVIDER = body.get("mode")  
+
+        print(response)
+        print(LLM_PROVIDER)                         
 
         #--------------------------------------------------Tools----------------------------------------------------------
         
@@ -143,7 +149,7 @@ async def receive_message(request: Request):
             MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
 
-        LLM_PROVIDER = "gemini" 
+      
 
         if LLM_PROVIDER == "openai":
 
@@ -159,25 +165,20 @@ async def receive_message(request: Request):
                 tools=tools,
                 verbose=True,
                 return_intermediate_steps=True,
-                handle_parsing_errors=True
             )
 
 
         elif LLM_PROVIDER == "gemini":
-
             active_memory = get_memory(user_id, "chat_history")
             llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=GOOGLE_API_KEY, temperature=0.5) 
             chain = create_tool_calling_agent(llm, tools, prompt_gemini_format) 
-
             agent_executor = AgentExecutor(
                 agent=chain,
                 memory=active_memory, 
                 tools=tools,
                 verbose=True,
                 return_intermediate_steps=True,
-                handle_parsing_errors=True
             )
-
         resposta = agent_executor.invoke({"input": response})
 
         return {"text": resposta["output"]}
