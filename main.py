@@ -6,7 +6,6 @@ from fastapi.staticfiles import StaticFiles
 from langchain.agents.format_scratchpad import format_to_openai_function_messages
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.agents import AgentExecutor
 from langchain.agents import create_tool_calling_agent
 from langchain_core.utils.function_calling import convert_to_openai_function
 from langchain_core.prompts import ChatPromptTemplate
@@ -53,7 +52,13 @@ def obter_hora_e_data_atual():
     return agora.strftime("%d-%m-%Y - %H:%M:%S")
 
 
-def get_memory(session_id_key: str, memory_key_name: str):
+def get_memory_for_user(whatsapp):
+    memory = RedisChatMessageHistory(
+        session_id=whatsapp, 
+        url=REDIS_URL)
+    return ConversationBufferMemory(return_messages=True, memory_key="memory", chat_memory=memory)
+
+def get_memory_gemini(session_id_key: str, memory_key_name: str):
     chat_memory = RedisChatMessageHistory(
         session_id=session_id_key,
         url=REDIS_URL
@@ -84,9 +89,7 @@ async def receive_message(request: Request):
         body = await request.json()
         user_id = "John Santos"
         user_number = "5541996143338"
-        #response = body["mensagem"]
         data_atual = obter_hora_e_data_atual()
-
         response = body.get("mensagem")
         LLM_PROVIDER = body.get("mode")  
 
@@ -128,10 +131,18 @@ async def receive_message(request: Request):
 
         tools = [enviar_msg, excluir_memoria]
 
+
         #--------------------------------------------------Tools----------------------------------------------------------
 
+
         prompt_openai_format = ChatPromptTemplate.from_messages([
-            ("system", f"Você é Morpheus (OpenAI). Data: {data_atual}."),
+            ("system", f"""
+                Você é um assistente jurídico trabalhando na Regdoor e seu fluxo de atendimento possui cinco etapas: 
+                1- Identifique na entrada o nome do contato e a organização e utilize a ferramenta 'buscar_pessoas_tool' para buscar os dados no banco. 
+                2- Extraia as informações necessárias da entrada, conforme os textos. 
+                3- Quando as informações estiverem presentes e o contato for encontrado, confirme com o usuário utilizando a ferramenta 'envia_confirma'. Se houver dois ou mais contatos na mesma organização, use a ferramenta paralela 'executar_paralelo_tool' para, simultaneamente, buscar os contatos e enviar um botão de seleção. 
+                4- Sta atual Não use forma Não use asteriscos '*' em suas mensagens. .
+            """),
             MessagesPlaceholder(variable_name="memory"),
             ("user", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad")
@@ -139,7 +150,7 @@ async def receive_message(request: Request):
 
         prompt_gemini_format = ChatPromptTemplate.from_messages([
             ("system", 
-                f"Você é Morpheus (Gemini), um assistente que mantém o contexto da conversa. Data: {data_atual}.\n\n"
+                f"Você é Morpheus, um assistente que mantém o contexto da conversa. Data: {data_atual}.\n\n"
                 "**Instruções para o uso de ferramentas:**\n"
                 "- **Para enviar uma mensagem**: Se o usuário solicitar 'enviar uma mensagem' ou 'enviar um whatsapp', utilize a ferramenta `enviar_msg` fornecendo o `texto` da mensagem.\n"
                 "- **Para excluir a memória**: Se o usuário pedir para 'excluir a memória', 'limpar a conversa' ou frases similares, utilize a ferramenta `excluir_memoria`.\n\n"
@@ -152,13 +163,13 @@ async def receive_message(request: Request):
       
 
         if LLM_PROVIDER == "openai":
-
-            active_memory = get_memory(user_id, "memory")
+            active_memory = get_memory_for_user(user_id)
             llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY, temperature=0.0)
             tools_json = [convert_to_openai_function(t) for t in tools]
-            chain = RunnablePassthrough.assign(
-                agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"])) | prompt_openai_format | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
-
+            pass_through = RunnablePassthrough.assign(
+                agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"]))
+            chain = pass_through | prompt_openai_format | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
+           
             agent_executor = AgentExecutor(
                 agent=chain,
                 memory=active_memory,
@@ -167,11 +178,11 @@ async def receive_message(request: Request):
                 return_intermediate_steps=True,
             )
 
-
         elif LLM_PROVIDER == "gemini":
-            active_memory = get_memory(user_id, "chat_history")
+            active_memory = get_memory_gemini(user_id, "chat_history")
             llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=GOOGLE_API_KEY, temperature=0.5) 
             chain = create_tool_calling_agent(llm, tools, prompt_gemini_format) 
+
             agent_executor = AgentExecutor(
                 agent=chain,
                 memory=active_memory, 
@@ -179,8 +190,10 @@ async def receive_message(request: Request):
                 verbose=True,
                 return_intermediate_steps=True,
             )
-        resposta = agent_executor.invoke({"input": response})
 
+        
+
+        resposta = agent_executor.invoke({"input": response})
         return {"text": resposta["output"]}
 
     except Exception as e:
