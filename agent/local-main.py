@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationBufferMemory 
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain.agents import AgentExecutor, create_tool_calling_agent
-from tools import soma
+from agent.tools import *
 import os
 
 REDIS_URL = "redis://default:QR02Eq2QKPlH6pJMN4wUo3XuEKUfqrAz@redis-16516.crce196.sa-east-1-2.ec2.redns.redis-cloud.com:16516"
@@ -11,8 +11,8 @@ REDIS_URL = "redis://default:QR02Eq2QKPlH6pJMN4wUo3XuEKUfqrAz@redis-16516.crce19
 llm = ChatOllama(
     model="qwen3:8b",
     temperature=0,
-    streaming=True  # Habilita o streaming das respostas em tempo real
-)
+    streaming=True  
+) # llama3.1:, qwen3:8b, qwen3:14b
 
 def get_memory_for_user(session_id):
     history = RedisChatMessageHistory(
@@ -24,16 +24,16 @@ def get_memory_for_user(session_id):
 prompt = ChatPromptTemplate.from_messages([
     (
         "system",
-        "Você é um assistente útil que usa as tools conforme necessidade.",
+        "Você é um assistente útil que extrai os numeros mencionados pelo usuario para utilizar a função soma, depois faz o campati do resultado encontrado. Sempre faça o campati",
     ),
     MessagesPlaceholder(variable_name='memoria'),
     ('human', '{input}'),
     MessagesPlaceholder(variable_name='agent_scratchpad')
 ])
 
-tools = [soma]
+tools = [soma, milu]
 agent = create_tool_calling_agent(llm, tools, prompt)
-active_memory = get_memory_for_user('session_id_placeholde') 
+active_memory = get_memory_for_user('session_iceholde') 
 
 agent_executor = AgentExecutor(
     agent=agent,
@@ -44,5 +44,5 @@ agent_executor = AgentExecutor(
 )
 
 response = agent_executor.invoke({
-    'input': 'Se considerarmos fazer um fine-tunning desse modelo, o que diria? Voce mencionou que o 8b poderia se limitar a interpretação mais complexa, mas o quanto mais o de 14b se sairia melhor nisso?',
+    'input': 'Ola tudo bem. Temos 21 e a segunda empresa ela 34'
 })

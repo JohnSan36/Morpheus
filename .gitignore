@@ -1,2 +1,16 @@
 /.env
 /venv
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+
+# Modelos gigantes baixados
+llama-3.1-8b-instruct-hf/
+
+# Pasta de dados (geralmente não versionamos dados brutos)
+data/
+
+# Arquivos de configuração de IDEs
+.vscode/
+.idea/
