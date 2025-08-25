@@ -16,3 +16,5 @@ data/
 # Arquivos de configuração de IDEs
 .vscode/
 .idea/
+
+__pycache__
