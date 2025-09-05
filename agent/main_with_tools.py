@@ -29,8 +29,8 @@ from datetime import datetime
 load_dotenv()
 
 app = FastAPI()
-templates = Jinja2Templates(directory="../templates")
-app.mount("/static", StaticFiles(directory="../static"), name="static")
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -148,9 +148,13 @@ def obter_data_hora():
     """Retorna a data e hora atual"""
     return obter_hora_e_data_atual()
 
+@tool
+def calcular_soma(a: float, b: float):
+    """Calcula a soma de dois números"""
+    resultado = a + b
+    return f"A soma de {a} + {b} = {resultado}"
 
-
-tools = [enviar_msg, excluir_memoria, obter_data_hora]
+tools = [enviar_msg, excluir_memoria, obter_data_hora, calcular_soma]
 
 
 #--------------------------------------------------Webhooks-------------------------------------------------------------------
@@ -166,8 +170,10 @@ async def receive_message(request: Request):
     try:
         body = await request.json()
         user_id = "John Santos"
-        response = body.get("mensagem", "Olá!")
-        LLM_PROVIDER = body.get("mode", "gemini")  
+        print(body)
+        response = body.get("mensagem")
+        LLM_PROVIDER = body.get("mode")
+            
         data_atual = obter_hora_e_data_atual()
 
         print(f"Mensagem: {response}")
@@ -213,7 +219,7 @@ async def receive_message(request: Request):
 
         #--------------------------------------------------LLM Setup com Memória Compartilhada----------------------------------------------------------
 
-        if LLM_PROVIDER == "openai":
+        if LLM_PROVIDER in ["openai", "chatgpt"]:
             if not OPENAI_API_KEY:
                 raise HTTPException(status_code=500, detail="OpenAI API key não configurada")
             

@@ -14,7 +14,7 @@
 
         <div class="chat-modes">
             <button id="mode-gemini" class="mode-button active" data-mode="gemini">Gemini</button>
-            <button id="mode-chatgpt" class="mode-button" data-mode="chatgpt">ChatGPT</button>
+            <button id="mode-chatgpt" class="mode-button" data-mode="openai">ChatGPT</button>
             </div>
 
         <div class="chat-messages" id="chat-messages">
@@ -33,7 +33,7 @@
         const mensagemInput = document.getElementById("mensagem");
         const modeButtons = document.querySelectorAll(".mode-button"); // Seleciona todos os botões de modo
 
-        let currentMode = "openai"; // Modo padrão
+        let currentMode = "gemini"; // Modo padrão
 
         // Função para adicionar uma mensagem ao chat
         function addMessage(sender, text) {
