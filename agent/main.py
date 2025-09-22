@@ -73,9 +73,15 @@ def get_memory_gemini(session_id_key: str, memory_key_name: str):
 
 def get_llm_by_mode(mode: str):
     """Retorna o LLM configurado baseado no modo selecionado"""
-    if mode == "ollama":
+    if mode == "ollama" or mode.startswith("ollama-"):
+        # Extrair o modelo do modo (ex: "ollama-qwen3:8b" -> "qwen3:8b")
+        if mode.startswith("ollama-"):
+            model_name = mode.replace("ollama-", "")
+        else:
+            model_name = "qwen3:8b"  # Padrão
+        
         return ChatOllama(
-            model="qwen3:8b",
+            model=model_name,
             base_url=OLLAMA_BASE_URL,
             temperature=0,
             streaming=True
@@ -197,7 +203,7 @@ async def receive_message(request: Request):
         llm = get_llm_by_mode(LLM_PROVIDER)
         
         # Se for Ollama, usar create_react_agent
-        if LLM_PROVIDER == "ollama":
+        if LLM_PROVIDER == "ollama" or LLM_PROVIDER.startswith("ollama-"):
             prompt = f"""Você é Morpheus, um assistente que mantém o contexto da conversa. Data: {data_atual}.
 
 **Instruções para o uso de ferramentas:**
