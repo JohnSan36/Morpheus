@@ -1,28 +1,18 @@
-dotenv
-google-ai-generativelanguage
+# Core Framework
+fastapi
+uvicorn[standard]
+jinja2
+
+# LangChain and AI Models
 langchain
-langchain-community
 langchain-core
-langchain-google-genai
-langchain-ollama
+langchain-community
 langchain-openai
-langchain-redis
-langchain-tavily
-langchain-text-splitters
+langchain-ollama
 langgraph
-langsmith
-numpy
-ollama
-openai
 python-dotenv
+
+# Utilities
 redis
-zstandard
-bitsandbytes
-transformers
-peft
-accelerate
-einops
-evaluate
-scikit-learn
-sentencepiece
-wandb
+requests
+pydantic

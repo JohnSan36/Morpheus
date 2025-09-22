@@ -3,22 +3,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-from langchain.agents.format_scratchpad import format_to_openai_function_messages
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.agents import create_tool_calling_agent
-from langchain_core.utils.function_calling import convert_to_openai_function
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
-from langchain.schema.runnable import RunnablePassthrough
-from langchain.memory import ConversationBufferMemory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.chat_message_histories import RedisChatMessageHistory
-from langchain.prompts import MessagesPlaceholder
-
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from langchain_ollama.chat_models import ChatOllama
+from langgraph.prebuilt import create_react_agent
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import tool
+from langchain_community.chat_message_histories import RedisChatMessageHistory
+from langchain.memory import ConversationBufferMemory
 
 from dotenv import load_dotenv, find_dotenv
 from pydantic import BaseModel, Field
@@ -32,6 +24,9 @@ from datetime import datetime
 import requests
 import os
 
+# Carregar variáveis de ambiente
+load_dotenv(find_dotenv())
+
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -41,8 +36,8 @@ EVOLUTION_URL = os.getenv("EVOLUTION_URL")
 INSTANCE_ID = os.getenv("EVOLUTION_INSTANCE")
 EVOLUTION_TOKEN = os.getenv("EVOLUTION_APIKEY")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 #-------------------------------------------------Functions---------------------------------------------------------------
 
@@ -64,6 +59,52 @@ def get_memory_gemini(session_id_key: str, memory_key_name: str):
         url=REDIS_URL
     )
     return ConversationBufferMemory(return_messages=True, memory_key=memory_key_name, chat_memory=chat_memory, output_key='output')
+
+def get_llm_by_mode(mode: str):
+    """Retorna o LLM configurado baseado no modo selecionado"""
+    if mode == "ollama":
+        return ChatOllama(
+            model="qwen3:8b",
+            base_url=OLLAMA_BASE_URL,
+            temperature=0,
+            streaming=True
+        )
+    elif mode == "gemini-flash":
+        return ChatOpenAI(
+            model="google/gemini-2.5-flash",
+            openai_api_key=OPENROUTER_API_KEY,
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.7
+        )
+    elif mode == "gemini-pro":
+        return ChatOpenAI(
+            model="google/gemini-2.5-pro",
+            openai_api_key=OPENROUTER_API_KEY,
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.7
+        )
+    elif mode == "gpt4o":
+        return ChatOpenAI(
+            model="openai/gpt-4o",
+            openai_api_key=OPENROUTER_API_KEY,
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.7
+        )
+    elif mode == "gpt4o-mini":
+        return ChatOpenAI(
+            model="openai/gpt-4o-mini",
+            openai_api_key=OPENROUTER_API_KEY,
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.7
+        )
+    else:
+        # Fallback para GPT-4o Mini se o modo não for reconhecido
+        return ChatOpenAI(
+            model="openai/gpt-4o-mini",
+            openai_api_key=OPENROUTER_API_KEY,
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.7
+        )
 
 
 
@@ -132,72 +173,73 @@ async def receive_message(request: Request):
         tools = [enviar_msg, excluir_memoria]
 
 
-        #--------------------------------------------------Tools----------------------------------------------------------
-
-
-        prompt_openai_format = ChatPromptTemplate.from_messages([
-            ("system", f"""
-                Você é um assistente jurídico trabalhando na Regdoor e seu fluxo de atendimento possui cinco etapas: 
-                1- Identifique na entrada o nome do contato e a organização e utilize a ferramenta 'buscar_pessoas_tool' para buscar os dados no banco. 
-                2- Extraia as informações necessárias da entrada, conforme os textos. 
-                3- Quando as informações estiverem presentes e o contato for encontrado, confirme com o usuário utilizando a ferramenta 'envia_confirma'. Se houver dois ou mais contatos na mesma organização, use a ferramenta paralela 'executar_paralelo_tool' para, simultaneamente, buscar os contatos e enviar um botão de seleção. 
-                4- Sta atual Não use forma Não use asteriscos '*' em suas mensagens. .
-            """),
-            MessagesPlaceholder(variable_name="memory"),
-            ("user", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
-
-        prompt_gemini_format = ChatPromptTemplate.from_messages([
-            ("system", 
-                f"Você é Morpheus, um assistente que mantém o contexto da conversa. Data: {data_atual}.\n\n"
-                "**Instruções para o uso de ferramentas:**\n"
-                "- **Para enviar uma mensagem**: Se o usuário solicitar 'enviar uma mensagem' ou 'enviar um whatsapp', utilize a ferramenta `enviar_msg` fornecendo o `texto` da mensagem.\n"
-                "- **Para excluir a memória**: Se o usuário pedir para 'excluir a memória', 'limpar a conversa' ou frases similares, utilize a ferramenta `excluir_memoria`.\n\n"
-                "Responda de forma útil e concisa, usando as ferramentas quando apropriado."),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("user", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
-
-      
-
-        if LLM_PROVIDER == "openai":
-            active_memory = get_memory_for_user(user_id)
-            llm = ChatOpenAI(model="gpt-4o", openai_api_key=OPENAI_API_KEY, temperature=0.0)
-            tools_json = [convert_to_openai_function(t) for t in tools]
-            pass_through = RunnablePassthrough.assign(
-                agent_scratchpad=lambda x: format_to_openai_function_messages(x["intermediate_steps"]))
-            chain = pass_through | prompt_openai_format | llm.bind(functions=tools_json) | OpenAIFunctionsAgentOutputParser()
-           
-            agent_executor = AgentExecutor(
-                agent=chain,
-                memory=active_memory,
-                tools=tools,
-                verbose=True,
-                return_intermediate_steps=True,
-            )
-
-        elif LLM_PROVIDER == "gemini":
-            active_memory = get_memory_gemini(user_id, "chat_history")
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-preview-05-20", google_api_key=GOOGLE_API_KEY, temperature=0.5) 
-            chain = create_tool_calling_agent(llm, tools, prompt_gemini_format) 
-
-            agent_executor = AgentExecutor(
-                agent=chain,
-                memory=active_memory, 
-                tools=tools,
-                verbose=True,
-                return_intermediate_steps=True,
-            )
-
+        # Configurar LLM baseado no modo selecionado
+        llm = get_llm_by_mode(LLM_PROVIDER)
         
+        # Se for Ollama, usar create_react_agent
+        if LLM_PROVIDER == "ollama":
+            prompt = f"""Você é Morpheus, um assistente que mantém o contexto da conversa. Data: {data_atual}.
 
-        resposta = agent_executor.invoke({"input": response})
-        return {"text": resposta["output"]}
+**Instruções para o uso de ferramentas:**
+- **Para enviar uma mensagem**: Se o usuário solicitar 'enviar uma mensagem' ou 'enviar um whatsapp', utilize a ferramenta `enviar_msg` fornecendo o `texto` da mensagem.
+- **Para excluir a memória**: Se o usuário pedir para 'excluir a memória', 'limpar a conversa' ou frases similares, utilize a ferramenta `excluir_memoria`.
+
+Responda de forma útil e concisa, usando as ferramentas quando apropriado."""
+
+            # Criar agente usando langgraph para Ollama
+            agent = create_react_agent(
+                model=llm,
+                tools=tools,
+                prompt=prompt
+            )
+
+            # Executar o agente
+            resposta = agent.invoke({
+                "messages": [{"role": "user", "content": response}]
+            })
+            
+            # Extrair a resposta do formato do langgraph
+            if isinstance(resposta, dict) and "messages" in resposta:
+                last_message = resposta["messages"][-1]
+                if hasattr(last_message, 'content'):
+                    return {"text": last_message.content}
+                else:
+                    return {"text": str(last_message)}
+            else:
+                return {"text": str(resposta)}
+        else:
+            # Para todos os outros modelos (OpenRouter), usar create_tool_calling_agent
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", f"Você é Morpheus, um assistente que mantém o contexto da conversa. Data: {data_atual}.\n\n"
+                          "**Instruções para o uso de ferramentas:**\n"
+                          "- **Para enviar uma mensagem**: Se o usuário solicitar 'enviar uma mensagem' ou 'enviar um whatsapp', utilize a ferramenta `enviar_msg` fornecendo o `texto` da mensagem.\n"
+                          "- **Para excluir a memória**: Se o usuário pedir para 'excluir a memória', 'limpar a conversa' ou frases similares, utilize a ferramenta `excluir_memoria`.\n\n"
+                          "Responda de forma útil e concisa, usando as ferramentas quando apropriado."),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("user", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad")
+            ])
+
+            # Obter memória
+            active_memory = get_memory_gemini(user_id, "chat_history")
+            
+            # Criar agente
+            agent = create_tool_calling_agent(llm, tools, prompt)
+            agent_executor = AgentExecutor(
+                agent=agent,
+                tools=tools,
+                memory=active_memory,
+                verbose=True,
+                return_intermediate_steps=True,
+                handle_parsing_errors=True,
+            )
+
+            # Processar mensagem
+            resposta = agent_executor.invoke({"input": response})
+            return {"text": resposta.get("output", "Não foi possível gerar uma resposta.")}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falha ao processar WEBHOOK: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8800)
+    uvicorn.run(app, host="0.0.0.0", port=8802)

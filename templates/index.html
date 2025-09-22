@@ -13,9 +13,12 @@
         </header>
 
         <div class="chat-modes">
-            <button id="mode-gemini" class="mode-button active" data-mode="gemini">Gemini</button>
-            <button id="mode-chatgpt" class="mode-button" data-mode="openai">ChatGPT</button>
-            </div>
+            <button id="mode-ollama" class="mode-button active" data-mode="ollama">Ollama Local</button>
+            <button id="mode-gemini-flash" class="mode-button" data-mode="gemini-flash">Gemini Flash 2.5</button>
+            <button id="mode-gemini-pro" class="mode-button" data-mode="gemini-pro">Gemini Pro 2.5</button>
+            <button id="mode-gpt4o" class="mode-button" data-mode="gpt4o">GPT-4o</button>
+            <button id="mode-gpt4o-mini" class="mode-button" data-mode="gpt4o-mini">GPT-4o Mini</button>
+        </div>
 
         <div class="chat-messages" id="chat-messages">
             </div>
@@ -33,7 +36,7 @@
         const mensagemInput = document.getElementById("mensagem");
         const modeButtons = document.querySelectorAll(".mode-button"); // Seleciona todos os botões de modo
 
-        let currentMode = "gemini"; // Modo padrão
+        let currentMode = "ollama"; // Modo padrão
 
         // Função para adicionar uma mensagem ao chat
         function addMessage(sender, text) {
