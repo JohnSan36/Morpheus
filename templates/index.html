@@ -59,20 +59,30 @@
             mensagemInput.value = "";
             mensagemInput.style.height = 'auto';
 
+            console.log("Enviando mensagem:", mensagem, "Modo:", currentMode);
+
             try {
-                const response = await fetch("/web", {
+                const response = await fetch("http://localhost:8001/web", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-        
                     body: JSON.stringify({ mensagem: mensagem, mode: currentMode })
                 });
 
+                console.log("Response status:", response.status);
+                console.log("Response ok:", response.ok);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const result = await response.json();
-                const assistantResponse = result.text || result.status || "Desculpe, não consegui obter uma resposta.";
+                console.log("Result:", result);
+                
+                const assistantResponse = result.text || "Desculpe, não consegui obter uma resposta.";
                 addMessage("assistant", assistantResponse);
             } catch (error) {
                 console.error("Erro ao enviar mensagem:", error);
-                addMessage("assistant", "Ocorreu um erro ao comunicar com o assistente. Tente novamente.");
+                addMessage("assistant", `Erro: ${error.message}`);
             }
         }
 
