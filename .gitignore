@@ -1,4 +1,5 @@
-/.env
+# Environment files
+.env
 /venv
 
 # Arquivos de cache do Python
